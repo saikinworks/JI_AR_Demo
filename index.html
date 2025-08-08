@@ -51,19 +51,19 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-          <a-entity mindar-image-target="targetIndex: 0">
-          <a-entity rotation="-90 0 0" position="0 0 0.3">
-            <a-plane
-              src="#video"
-              width="1"
-              height="1.333"
-              transparent="true"
-              scale="0.5 0.5 0.5"
-              material="shader: flat; transparent: true"
-            ></a-plane>
-          </a-entity>
-        </a-entity>
-
+      <a-entity mindar-image-target="targetIndex: 0">
+        <!-- ✅ 16:9 比例的影片 -->
+        <a-plane
+          src="#video"
+          width="1"
+          height="1.333"
+          position="0 0 0"
+          transparent="true"
+          scale="1 1 1"
+          rotation="0 0 0"
+          material="shader: flat; transparent: true"
+        ></a-plane>
+      </a-entity>
     </a-scene>
 
     <!-- ✅ 修正自動播放被封鎖 -->
