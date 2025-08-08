@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR PNG AR</title>
+    <title>MindAR Transparent Video</title>
 
-    <!-- ✅ 加入 CSS：讓畫面填滿全螢幕 -->
+    <!-- ✅ CSS：全螢幕顯示 -->
     <style>
       html, body {
         margin: 0;
@@ -24,7 +24,7 @@
       }
     </style>
 
-    <!-- A-Frame + MindAR -->
+    <!-- A-Frame & MindAR -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   </head>
@@ -33,26 +33,35 @@
     <a-scene
       mindar-image="imageTargetSrc: target.mind"
       color-space="sRGB"
-      renderer="colorManagement: true, physicallyCorrectLights"
+      renderer="colorManagement: true, physicallyCorrectLights, alpha:true"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false"
       embedded
     >
       <a-assets>
-        <img id="overlay" src="myVideo.png" />
+        <video
+          id="video"
+          src="myVideo.webm"
+          autoplay
+          loop
+          muted
+          playsinline
+          crossorigin="anonymous"
+        ></video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        <a-plane 
-          src="#overlay" 
-          width="1" 
-          height="1" 
+        <a-video
+          src="#video"
+          width="1"
+          height="0.5625"
           position="0 0 0"
           transparent="true"
-        ></a-plane>
+        ></a-video>
       </a-entity>
     </a-scene>
   </body>
 </html>
+
