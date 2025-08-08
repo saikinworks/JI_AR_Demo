@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MindAR Transparent Video</title>
 
-    <!-- ✅ CSS：全螢幕顯示 -->
     <style>
       html, body {
         margin: 0;
@@ -24,7 +23,7 @@
       }
     </style>
 
-    <!-- A-Frame & MindAR -->
+    <!-- A-Frame + MindAR -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   </head>
@@ -41,7 +40,7 @@
       <a-assets>
         <video
           id="video"
-          src="myVideo.mp4"
+          src="myVideo.webm"
           autoplay
           loop
           muted
@@ -53,15 +52,33 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
+        <!-- ✅ 16:9 比例的影片 -->
         <a-video
           src="#video"
           width="1"
-          height="0.5625"
+          height="0.9216"
           position="0 0 0"
           transparent="true"
         ></a-video>
       </a-entity>
     </a-scene>
+
+    <!-- ✅ 修正自動播放被封鎖 -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const video = document.querySelector("#video");
+        video.play().catch((e) => {
+          console.warn("Auto-play blocked, waiting for user interaction.");
+          document.body.addEventListener(
+            "click",
+            () => {
+              video.play();
+            },
+            { once: true }
+          );
+        });
+      });
+    </script>
   </body>
 </html>
 
