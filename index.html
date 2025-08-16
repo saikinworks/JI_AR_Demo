@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader with Edge Fix)</title>
+    <title>MindAR Transparent Video (Mask Shader Synced)</title>
 
     <style>
       html, body {
@@ -63,4 +63,97 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <!-- 🎯 掛載目標 -->
-      <a-entity mindar-image-target="targetIndex: 0" rotation="-90 0 0" po
+      <a-entity mindar-image-target="targetIndex: 0" rotation="-90 0 0" position="0 0 0.5">
+        <a-plane
+          id="videoPlane"
+          width="1"
+          height="1.333"
+          scale="1.3 1.3 1.3"
+          material="shader: video-mask-shader"
+        ></a-plane>
+      </a-entity>
+    </a-scene>
+
+    <!-- 🧩 自訂 Shader -->
+    <script>
+      AFRAME.registerShader("video-mask-shader", {
+        schema: {},
+        init: function () {
+          const videoColor = document.querySelector("#videoColor");
+          const videoMask = document.querySelector("#videoMask");
+
+          const texColor = new THREE.VideoTexture(videoColor);
+          texColor.minFilter = THREE.LinearFilter;
+          texColor.magFilter = THREE.LinearFilter;
+          texColor.format = THREE.RGBAFormat;
+          texColor.encoding = THREE.sRGBEncoding;
+
+          const texMask = new THREE.VideoTexture(videoMask);
+          texMask.minFilter = THREE.LinearFilter;
+          texMask.magFilter = THREE.LinearFilter;
+          texMask.format = THREE.LuminanceFormat;
+          texMask.encoding = THREE.sRGBEncoding;
+
+          this.material = new THREE.ShaderMaterial({
+            uniforms: {
+              map: { value: texColor },
+              maskMap: { value: texMask },
+            },
+            vertexShader: `
+              varying vec2 vUV;
+              void main() {
+                vUV = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform sampler2D map;
+              uniform sampler2D maskMap;
+              varying vec2 vUV;
+              void main() {
+                vec4 color = texture2D(map, vUV);
+                float mask = texture2D(maskMap, vUV).r;
+                // 🔹 使用 smoothstep 柔化邊緣
+                float alpha = smoothstep(0.05, 0.1, mask);
+                if(alpha < 0.01){
+                  discard;
+                }
+                gl_FragColor = vec4(color.rgb, alpha);
+              }
+            `,
+            transparent: true,
+          });
+        },
+      });
+
+      // ✅ 兩影片同步播放
+      document.addEventListener("DOMContentLoaded", () => {
+        const videoColor = document.querySelector("#videoColor");
+        const videoMask = document.querySelector("#videoMask");
+
+        function tryPlayVideos() {
+          if (videoColor.readyState >= 3 && videoMask.readyState >= 3) {
+            videoMask.currentTime = videoColor.currentTime; // 🔹 對齊時間
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+          } else {
+            setTimeout(tryPlayVideos, 100);
+          }
+        }
+
+        tryPlayVideos();
+
+        // iOS 自動播放觸發
+        document.body.addEventListener(
+          "click",
+          () => {
+            videoMask.currentTime = videoColor.currentTime;
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+          },
+          { once: true }
+        );
+      });
+    </script>
+  </body>
+</html>
