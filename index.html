@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader)</title>
+    <title>MindAR Transparent Video (Mask Shader Synced)</title>
 
     <style>
       html, body {
@@ -67,7 +67,7 @@
         <a-plane
           id="videoPlane"
           width="1"
-          height="0.5625"
+          height="1.333"
           scale="1 1 1"
           material="shader: video-mask-shader"
         ></a-plane>
@@ -124,20 +124,33 @@
         },
       });
 
-      // ✅ 解決 iOS 自動播放問題
+      // ✅ 兩影片同步播放
       document.addEventListener("DOMContentLoaded", () => {
-        const videos = [document.querySelector("#videoColor"), document.querySelector("#videoMask")];
-        videos.forEach((video) => {
-          video.play().catch(() => {
-            document.body.addEventListener(
-              "click",
-              () => {
-                videos.forEach((v) => v.play());
-              },
-              { once: true }
-            );
-          });
-        });
+        const videoColor = document.querySelector("#videoColor");
+        const videoMask = document.querySelector("#videoMask");
+
+        function tryPlayVideos() {
+          if (videoColor.readyState >= 3 && videoMask.readyState >= 3) {
+            videoMask.currentTime = videoColor.currentTime; // 對齊時間
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+          } else {
+            setTimeout(tryPlayVideos, 100);
+          }
+        }
+
+        tryPlayVideos();
+
+        // iOS 自動播放觸發
+        document.body.addEventListener(
+          "click",
+          () => {
+            videoMask.currentTime = videoColor.currentTime;
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+          },
+          { once: true }
+        );
       });
     </script>
   </body>
