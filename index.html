@@ -69,7 +69,7 @@
           width="1"
           height="0.5625"
           scale="1 1 1"
-          material="shader: video-mask-shader; src: #videoColor; mask: #videoMask;"
+          material="shader: video-mask-shader"
         ></a-plane>
       </a-entity>
     </a-scene>
@@ -77,15 +77,25 @@
     <!-- 🧩 自訂 Shader -->
     <script>
       AFRAME.registerShader("video-mask-shader", {
-        schema: {
-          src: { type: "map" },
-          mask: { type: "map" },
-        },
-        init: function (data) {
+        schema: {},
+        init: function () {
+          const videoColor = document.querySelector("#videoColor");
+          const videoMask = document.querySelector("#videoMask");
+
+          const texColor = new THREE.VideoTexture(videoColor);
+          texColor.minFilter = THREE.LinearFilter;
+          texColor.magFilter = THREE.LinearFilter;
+          texColor.format = THREE.RGBAFormat;
+
+          const texMask = new THREE.VideoTexture(videoMask);
+          texMask.minFilter = THREE.LinearFilter;
+          texMask.magFilter = THREE.LinearFilter;
+          texMask.format = THREE.LuminanceFormat;
+
           this.material = new THREE.ShaderMaterial({
             uniforms: {
-              map: { value: data.src },
-              maskMap: { value: data.mask },
+              map: { value: texColor },
+              maskMap: { value: texMask },
             },
             vertexShader: `
               varying vec2 vUV;
@@ -106,11 +116,7 @@
             `,
             transparent: true,
           });
-        },
-        update: function (data) {
-          this.material.uniforms.map.value = data.src;
-          this.material.uniforms.maskMap.value = data.mask;
-        },
+        }
       });
 
       // ✅ 解決 iOS 自動播放問題
