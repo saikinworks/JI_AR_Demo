@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader Synced Stable)</title>
+    <title>MindAR Transparent Video (Mask Shader Synced)</title>
 
     <style>
       html, body {
@@ -41,6 +41,7 @@
         <video
           id="videoColor"
           src="myVideo_color.mp4"
+          autoplay
           loop
           muted
           playsinline
@@ -51,6 +52,7 @@
         <video
           id="videoMask"
           src="myVideo_mask.mp4"
+          autoplay
           loop
           muted
           playsinline
@@ -111,12 +113,12 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                // 強化邊緣過渡，減少白邊
-                mask = smoothstep(0.05, 0.95, mask);
-                if(mask < 0.01){
+                // 🔹 更細微的邊緣柔化
+                float alpha = smoothstep(0.005, 0.03, mask);
+                if(alpha < 0.001){
                   discard;
                 }
-                gl_FragColor = vec4(color.rgb, mask);
+                gl_FragColor = vec4(color.rgb, alpha);
               }
             `,
             transparent: true,
@@ -124,42 +126,33 @@
         },
       });
 
-      // ✅ 影片同步播放，只對齊一次
+      // ✅ 兩影片同步播放
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
 
-        function startVideos() {
-          videoMask.currentTime = videoColor.currentTime; // 對齊時間
-          const playPromises = [videoColor.play(), videoMask.play()];
-
-          playPromises.forEach((p) => {
-            p.catch(() => {
-              // iOS 自動播放觸發
-              document.body.addEventListener(
-                "click",
-                () => {
-                  videoMask.currentTime = videoColor.currentTime;
-                  videoColor.play().catch(() => {});
-                  videoMask.play().catch(() => {});
-                },
-                { once: true }
-              );
-            });
-          });
+        function tryPlayVideos() {
+          if (videoColor.readyState >= 3 && videoMask.readyState >= 3) {
+            videoMask.currentTime = videoColor.currentTime; // 🔹 對齊時間
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+          } else {
+            setTimeout(tryPlayVideos, 100);
+          }
         }
 
-        // 確保兩個影片都可以播放再開始
-        if (videoColor.readyState >= 3 && videoMask.readyState >= 3) {
-          startVideos();
-        } else {
-          videoColor.addEventListener("canplay", () => {
-            if (videoMask.readyState >= 3) startVideos();
-          });
-          videoMask.addEventListener("canplay", () => {
-            if (videoColor.readyState >= 3) startVideos();
-          });
-        }
+        tryPlayVideos();
+
+        // iOS 自動播放觸發
+        document.body.addEventListener(
+          "click",
+          () => {
+            videoMask.currentTime = videoColor.currentTime;
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+          },
+          { once: true }
+        );
       });
     </script>
   </body>
