@@ -67,7 +67,7 @@
         <a-plane
           id="videoPlane"
           width="1"
-          height="1"
+          height="1.333"
           scale="1.3 1.3 1.3"
           material="shader: video-mask-shader"
         ></a-plane>
@@ -113,9 +113,9 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                // 🔹 強化柔化邊緣
-                float alpha = smoothstep(0.02, 0.08, mask);
-                if(alpha < 0.005){
+                // 🔹 更細微的邊緣柔化
+                float alpha = smoothstep(0.005, 0.03, mask);
+                if(alpha < 0.001){
                   discard;
                 }
                 gl_FragColor = vec4(color.rgb, alpha);
