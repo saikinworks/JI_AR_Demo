@@ -118,7 +118,8 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                float alpha = smoothstep(0.01, 0.03, mask);
+                // 更柔和的 smoothstep
+                float alpha = smoothstep(0.0, 0.05, mask);
                 if(alpha < 0.001){
                   discard;
                 }
