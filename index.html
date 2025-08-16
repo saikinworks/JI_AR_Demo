@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader Synced, Edge Color)</title>
+    <title>MindAR Transparent Video (Mask Shader Edge Color Fixed)</title>
 
     <style>
       html, body {
@@ -95,6 +95,7 @@
           texMask.format = THREE.LuminanceFormat;
           texMask.encoding = THREE.sRGBEncoding;
 
+          // RGB(123,47,48)
           const edgeColor = new THREE.Color(123/255, 47/255, 48/255);
 
           this.material = new THREE.ShaderMaterial({
@@ -118,13 +119,12 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                // 更柔和的 smoothstep
-                float alpha = smoothstep(0.0, 0.05, mask);
-                if(alpha < 0.001){
-                  discard;
-                }
+                float alpha = smoothstep(0.01, 0.03, mask);
                 vec3 finalColor = mix(edgeColor, color.rgb, alpha);
                 gl_FragColor = vec4(finalColor, alpha);
+                if(gl_FragColor.a < 0.01){
+                  discard;
+                }
               }
             `,
             transparent: true,
