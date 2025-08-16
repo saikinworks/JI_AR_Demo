@@ -86,11 +86,13 @@
           texColor.minFilter = THREE.LinearFilter;
           texColor.magFilter = THREE.LinearFilter;
           texColor.format = THREE.RGBAFormat;
+          texColor.encoding = THREE.sRGBEncoding;
 
           const texMask = new THREE.VideoTexture(videoMask);
           texMask.minFilter = THREE.LinearFilter;
           texMask.magFilter = THREE.LinearFilter;
           texMask.format = THREE.LuminanceFormat;
+          texMask.encoding = THREE.sRGBEncoding;
 
           this.material = new THREE.ShaderMaterial({
             uniforms: {
@@ -111,12 +113,15 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
+                if(mask < 0.01){
+                  discard;
+                }
                 gl_FragColor = vec4(color.rgb, mask);
               }
             `,
             transparent: true,
           });
-        }
+        },
       });
 
       // ✅ 解決 iOS 自動播放問題
