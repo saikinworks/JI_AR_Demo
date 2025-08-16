@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video</title>
+    <title>MindAR Transparent Video (Mask Shader)</title>
 
     <style>
       html, body {
@@ -13,7 +13,6 @@
         height: 100%;
         overflow: hidden;
       }
-
       a-scene {
         position: absolute;
         top: 0;
@@ -38,9 +37,21 @@
       embedded
     >
       <a-assets>
+        <!-- 🎥 彩色影片 (黑底) -->
         <video
-          id="video"
-          src="myVideo.webm"
+          id="videoColor"
+          src="myVideo_color.mp4"
+          autoplay
+          loop
+          muted
+          playsinline
+          crossorigin="anonymous"
+        ></video>
+
+        <!-- 🎥 遮罩影片 (白=顯示, 黑=透明) -->
+        <video
+          id="videoMask"
+          src="myVideo_mask.mp4"
           autoplay
           loop
           muted
@@ -51,37 +62,72 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity mindar-image-target="targetIndex: 0" rotation="-90 0 0" position="1.5 0 0.5">
-        <!-- ✅ 16:9 比例的影片 -->
+      <!-- 🎯 掛載目標 -->
+      <a-entity mindar-image-target="targetIndex: 0" rotation="-90 0 0" position="0 0 0.5">
         <a-plane
-          src="#video"
+          id="videoPlane"
           width="1"
-          height="1.333"
-          transparent="true"
-          scale="1.2 1.2 1.2"
-          material="shader: flat; transparent: true"
+          height="0.5625"
+          scale="1 1 1"
+          material="shader: video-mask-shader; src: #videoColor; mask: #videoMask;"
         ></a-plane>
       </a-entity>
     </a-scene>
 
-    <!-- ✅ 修正自動播放被封鎖 -->
+    <!-- 🧩 自訂 Shader -->
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        const video = document.querySelector("#video");
-        video.play().catch((e) => {
-          console.warn("Auto-play blocked, waiting for user interaction.");
-          document.body.addEventListener(
-            "click",
-            () => {
-              video.play();
+      AFRAME.registerShader("video-mask-shader", {
+        schema: {
+          src: { type: "map" },
+          mask: { type: "map" },
+        },
+        init: function (data) {
+          this.material = new THREE.ShaderMaterial({
+            uniforms: {
+              map: { value: data.src },
+              maskMap: { value: data.mask },
             },
-            { once: true }
-          );
+            vertexShader: `
+              varying vec2 vUV;
+              void main() {
+                vUV = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform sampler2D map;
+              uniform sampler2D maskMap;
+              varying vec2 vUV;
+              void main() {
+                vec4 color = texture2D(map, vUV);
+                float mask = texture2D(maskMap, vUV).r;
+                gl_FragColor = vec4(color.rgb, mask);
+              }
+            `,
+            transparent: true,
+          });
+        },
+        update: function (data) {
+          this.material.uniforms.map.value = data.src;
+          this.material.uniforms.maskMap.value = data.mask;
+        },
+      });
+
+      // ✅ 解決 iOS 自動播放問題
+      document.addEventListener("DOMContentLoaded", () => {
+        const videos = [document.querySelector("#videoColor"), document.querySelector("#videoMask")];
+        videos.forEach((video) => {
+          video.play().catch(() => {
+            document.body.addEventListener(
+              "click",
+              () => {
+                videos.forEach((v) => v.play());
+              },
+              { once: true }
+            );
+          });
         });
       });
     </script>
   </body>
-
 </html>
-
-
