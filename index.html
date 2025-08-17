@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader Synced)</title>
+    <title>MindAR Transparent Video (Mask Shader Synced, Less White Edge)</title>
 
     <style>
       html, body {
@@ -113,7 +113,7 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                if(mask < 0.01){
+                if(mask < 0.003){  // 閾值調小，白邊更少
                   discard;
                 }
                 gl_FragColor = vec4(color.rgb, mask);
@@ -124,28 +124,24 @@
         },
       });
 
-      // ✅ 兩影片同步播放 + 溫和同步修正
+      // ✅ 影片播放與同步（優化過，避免 iOS 卡卡）
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
 
         function tryPlayVideos() {
           if (videoColor.readyState >= 3 && videoMask.readyState >= 3) {
-            videoMask.currentTime = videoColor.currentTime; // 首次對齊
+            videoMask.currentTime = videoColor.currentTime; // 初始對齊
             videoColor.play().catch(() => {});
             videoMask.play().catch(() => {});
 
-            // 溫和同步迴圈
-            function syncLoop() {
-              if (!videoColor.paused && !videoMask.paused) {
-                const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
-                if (diff > 0.05) {
-                  videoMask.currentTime = videoColor.currentTime;
-                }
+            // 每 200ms 檢查一次時間差
+            setInterval(() => {
+              const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
+              if (diff > 0.15) {
+                videoMask.currentTime = videoColor.currentTime; // 只在差距大時修正
               }
-              requestAnimationFrame(syncLoop);
-            }
-            syncLoop();
+            }, 200);
           } else {
             setTimeout(tryPlayVideos, 100);
           }
