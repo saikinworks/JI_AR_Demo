@@ -118,15 +118,19 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                // 邊緣柔化
-                float smoothMask = smoothstep(0.05, 0.95, mask);
+
                 // 如果完全透明就丟棄
                 if(mask < 0.01){
                   discard;
                 }
-                // 邊緣顏色混合 (透明區不影響)
-                vec3 finalColor = mix(edgeColor, color.rgb, smoothMask);
-                gl_FragColor = vec4(finalColor, smoothMask);
+
+                // 柔化邊緣
+                float smoothMask = smoothstep(0.0, 0.1, mask);
+
+                // 只有接近透明的邊緣使用 edgeColor
+                vec3 finalColor = mix(edgeColor, color.rgb, smoothstep(0.1, 1.0, mask));
+
+                gl_FragColor = vec4(finalColor, mask);
               }
             `,
             transparent: true,
