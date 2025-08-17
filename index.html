@@ -126,17 +126,28 @@
         },
       });
 
-      // ✅ 影片同步播放
+      // ✅ 影片同步播放 + 溫和同步
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
 
         function playVideos() {
           if(videoColor.readyState >= 3 && videoMask.readyState >= 3){
-            // 對齊時間，然後同時播放
             videoMask.currentTime = videoColor.currentTime;
             videoColor.play().catch(() => {});
             videoMask.play().catch(() => {});
+
+            // 溫和同步迴圈
+            function syncLoop() {
+              if (!videoColor.paused && !videoMask.paused) {
+                const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
+                if (diff > 0.03) { // 允許誤差更小
+                  videoMask.currentTime = videoColor.currentTime;
+                }
+              }
+              requestAnimationFrame(syncLoop);
+            }
+            syncLoop();
           } else {
             setTimeout(playVideos, 100);
           }
