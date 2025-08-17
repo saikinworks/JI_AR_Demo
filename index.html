@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader Synced iOS Friendly)</title>
+    <title>MindAR Transparent Video (Mask Shader Synced)</title>
 
     <style>
       html, body {
@@ -33,7 +33,7 @@
       color-space="sRGB"
       renderer="colorManagement: true, physicallyCorrectLights, alpha:true"
       vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: true"
+      device-orientation-permission-ui="enabled: false"
       embedded
     >
       <a-assets>
@@ -41,10 +41,10 @@
         <video
           id="videoColor"
           src="myVideo_color.mp4"
+          autoplay
           loop
           muted
           playsinline
-          preload="auto"
           crossorigin="anonymous"
         ></video>
 
@@ -52,10 +52,10 @@
         <video
           id="videoMask"
           src="myVideo_mask.mp4"
+          autoplay
           loop
           muted
           playsinline
-          preload="auto"
           crossorigin="anonymous"
         ></video>
       </a-assets>
@@ -114,7 +114,7 @@
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
                 // 邊緣柔化
-                mask = smoothstep(0.03, 0.98, mask);
+                mask = smoothstep(0.02, 0.99, mask);
                 if(mask < 0.01){
                   discard;
                 }
@@ -126,51 +126,41 @@
         },
       });
 
-      // ✅ iOS 友好同步播放 + 溫和同步
+      // ✅ 影片同步播放 + 溫和同步
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
 
-        let canPlayCount = 0;
-        function onCanPlay() {
-          canPlayCount++;
-          if (canPlayCount === 2) {
-            waitForUserGesture();
+        function playVideos() {
+          if(videoColor.readyState >= 3 && videoMask.readyState >= 3){
+            videoMask.currentTime = videoColor.currentTime;
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+
+            // 溫和同步迴圈
+            function syncLoop() {
+              if (!videoColor.paused && !videoMask.paused) {
+                const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
+                if (diff > 0.03) { // 允許誤差更小
+                  videoMask.currentTime = videoColor.currentTime;
+                }
+              }
+              requestAnimationFrame(syncLoop);
+            }
+            syncLoop();
+          } else {
+            setTimeout(playVideos, 100);
           }
         }
 
-        videoColor.addEventListener("canplaythrough", onCanPlay, { once: true });
-        videoMask.addEventListener("canplaythrough", onCanPlay, { once: true });
+        playVideos();
 
-        function waitForUserGesture() {
-          // iOS: 等待使用者點擊
-          document.body.addEventListener("click", () => {
-            startVideos();
-          }, { once: true });
-
-          // 非 iOS: 可直接播放
-          if (!AFRAME.utils.device.isIOS()) {
-            startVideos();
-          }
-        }
-
-        function startVideos() {
+        // iOS 自動播放觸發
+        document.body.addEventListener("click", () => {
           videoMask.currentTime = videoColor.currentTime;
           videoColor.play().catch(() => {});
           videoMask.play().catch(() => {});
-
-          // 溫和同步迴圈
-          function syncLoop() {
-            if (!videoColor.paused && !videoMask.paused) {
-              const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
-              if (diff > 0.02) {
-                videoMask.currentTime = videoColor.currentTime;
-              }
-            }
-            requestAnimationFrame(syncLoop);
-          }
-          syncLoop();
-        }
+        }, { once: true });
       });
     </script>
   </body>
