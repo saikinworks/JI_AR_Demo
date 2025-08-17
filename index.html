@@ -68,7 +68,7 @@
           id="videoPlane"
           width="1"
           height="1"
-          scale="1 1 1"
+          scale="1.3 1.3 1.3"
           material="shader: video-mask-shader"
         ></a-plane>
       </a-entity>
@@ -113,8 +113,6 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                // 邊緣柔化
-                mask = smoothstep(0.05, 0.95, mask);
                 if(mask < 0.01){
                   discard;
                 }
@@ -126,30 +124,45 @@
         },
       });
 
-      // ✅ 影片同步播放
+      // ✅ 兩影片同步播放 + 溫和同步修正
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
 
-        function playVideos() {
-          if(videoColor.readyState >= 3 && videoMask.readyState >= 3){
-            // 對齊時間，然後同時播放
-            videoMask.currentTime = videoColor.currentTime;
+        function tryPlayVideos() {
+          if (videoColor.readyState >= 3 && videoMask.readyState >= 3) {
+            videoMask.currentTime = videoColor.currentTime; // 首次對齊
             videoColor.play().catch(() => {});
             videoMask.play().catch(() => {});
+
+            // 溫和同步迴圈
+            function syncLoop() {
+              if (!videoColor.paused && !videoMask.paused) {
+                const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
+                if (diff > 0.05) {
+                  videoMask.currentTime = videoColor.currentTime;
+                }
+              }
+              requestAnimationFrame(syncLoop);
+            }
+            syncLoop();
           } else {
-            setTimeout(playVideos, 100);
+            setTimeout(tryPlayVideos, 100);
           }
         }
 
-        playVideos();
+        tryPlayVideos();
 
         // iOS 自動播放觸發
-        document.body.addEventListener("click", () => {
-          videoMask.currentTime = videoColor.currentTime;
-          videoColor.play().catch(() => {});
-          videoMask.play().catch(() => {});
-        }, { once: true });
+        document.body.addEventListener(
+          "click",
+          () => {
+            videoMask.currentTime = videoColor.currentTime;
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+          },
+          { once: true }
+        );
       });
     </script>
   </body>
