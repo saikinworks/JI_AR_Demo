@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video</title>
+    <title>MindAR Transparent Video (Mask Shader Synced, Less White Edge)</title>
 
     <style>
       html, body {
@@ -13,7 +13,6 @@
         height: 100%;
         overflow: hidden;
       }
-
       a-scene {
         position: absolute;
         top: 0;
@@ -38,9 +37,21 @@
       embedded
     >
       <a-assets>
+        <!-- 🎥 彩色影片 (黑底) -->
         <video
-          id="video"
-          src="myVideo.webm"
+          id="videoColor"
+          src="myVideo_color.mp4"
+          autoplay
+          loop
+          muted
+          playsinline
+          crossorigin="anonymous"
+        ></video>
+
+        <!-- 🎥 遮罩影片 (白=顯示, 黑=透明) -->
+        <video
+          id="videoMask"
+          src="myVideo_mask.mp4"
           autoplay
           loop
           muted
@@ -51,37 +62,104 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity mindar-image-target="targetIndex: 0" rotation="-90 0 0" position="1.5 0 0.5">
-        <!-- ✅ 16:9 比例的影片 -->
+      <!-- 🎯 掛載目標 -->
+      <a-entity mindar-image-target="targetIndex: 0" rotation="-90 0 0" position="0 0 0.5">
         <a-plane
-          src="#video"
+          id="videoPlane"
           width="1"
-          height="1.333"
-          transparent="true"
-          scale="1.2 1.2 1.2"
-          material="shader: flat; transparent: true"
+          height="1"
+          scale="1.3 1.3 1.3"
+          material="shader: video-mask-shader"
         ></a-plane>
       </a-entity>
     </a-scene>
 
-    <!-- ✅ 修正自動播放被封鎖 -->
+    <!-- 🧩 自訂 Shader -->
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        const video = document.querySelector("#video");
-        video.play().catch((e) => {
-          console.warn("Auto-play blocked, waiting for user interaction.");
-          document.body.addEventListener(
-            "click",
-            () => {
-              video.play();
+      AFRAME.registerShader("video-mask-shader", {
+        schema: {},
+        init: function () {
+          const videoColor = document.querySelector("#videoColor");
+          const videoMask = document.querySelector("#videoMask");
+
+          const texColor = new THREE.VideoTexture(videoColor);
+          texColor.minFilter = THREE.LinearFilter;
+          texColor.magFilter = THREE.LinearFilter;
+          texColor.format = THREE.RGBAFormat;
+          texColor.encoding = THREE.sRGBEncoding;
+
+          const texMask = new THREE.VideoTexture(videoMask);
+          texMask.minFilter = THREE.LinearFilter;
+          texMask.magFilter = THREE.LinearFilter;
+          texMask.format = THREE.LuminanceFormat;
+          texMask.encoding = THREE.sRGBEncoding;
+
+          this.material = new THREE.ShaderMaterial({
+            uniforms: {
+              map: { value: texColor },
+              maskMap: { value: texMask },
             },
-            { once: true }
-          );
-        });
+            vertexShader: `
+              varying vec2 vUV;
+              void main() {
+                vUV = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform sampler2D map;
+              uniform sampler2D maskMap;
+              varying vec2 vUV;
+              void main() {
+                vec4 color = texture2D(map, vUV);
+                float mask = texture2D(maskMap, vUV).r;
+                if(mask < 0.003){  // 閾值調小，白邊更少
+                  discard;
+                }
+                gl_FragColor = vec4(color.rgb, mask);
+              }
+            `,
+            transparent: true,
+          });
+        },
+      });
+
+      // ✅ 影片播放與同步（優化過，避免 iOS 卡卡）
+      document.addEventListener("DOMContentLoaded", () => {
+        const videoColor = document.querySelector("#videoColor");
+        const videoMask = document.querySelector("#videoMask");
+
+        function tryPlayVideos() {
+          if (videoColor.readyState >= 3 && videoMask.readyState >= 3) {
+            videoMask.currentTime = videoColor.currentTime; // 初始對齊
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+
+            // 每 200ms 檢查一次時間差
+            setInterval(() => {
+              const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
+              if (diff > 0.15) {
+                videoMask.currentTime = videoColor.currentTime; // 只在差距大時修正
+              }
+            }, 200);
+          } else {
+            setTimeout(tryPlayVideos, 100);
+          }
+        }
+
+        tryPlayVideos();
+
+        // iOS 自動播放觸發
+        document.body.addEventListener(
+          "click",
+          () => {
+            videoMask.currentTime = videoColor.currentTime;
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+          },
+          { once: true }
+        );
       });
     </script>
   </body>
-
 </html>
-
-
