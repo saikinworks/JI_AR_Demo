@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader Synced)</title>
+    <title>MindAR Transparent Video + PNG (Mask Shader Synced)</title>
 
     <style>
       html, body {
@@ -58,17 +58,30 @@
           playsinline
           crossorigin="anonymous"
         ></video>
+
+        <!-- PNG 圖片 -->
+        <img id="myPNG" src="myImage.png" crossorigin="anonymous" />
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <!-- 🎯 掛載目標 -->
-      <a-entity mindar-image-target="targetIndex: 0" rotation="-90 0 0" position="0 1 0.8">
+      <a-entity mindar-image-target="targetIndex: 0" rotation="-90 0 0" position="0 -1 0.5">
+        <!-- PNG 在影片下面 -->
+        <a-plane
+          src="#myPNG"
+          width="1"
+          height="1"
+          position="0 0 -0.01"
+          transparent="true"
+        ></a-plane>
+
+        <!-- 影片平面 -->
         <a-plane
           id="videoPlane"
           width="1"
           height="1"
-          scale="1.6 1.6 1.6"
+          scale="1 1 1"
           material="shader: video-mask-shader"
         ></a-plane>
       </a-entity>
@@ -114,7 +127,7 @@
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
                 // 邊緣柔化
-                mask = smoothstep(0.05, 0.95, mask);
+                mask = smoothstep(0.03, 0.98, mask);
                 if(mask < 0.01){
                   discard;
                 }
@@ -141,7 +154,7 @@
             function syncLoop() {
               if (!videoColor.paused && !videoMask.paused) {
                 const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
-                if (diff > 0.03) { // 允許誤差更小
+                if (diff > 0.03) { 
                   videoMask.currentTime = videoColor.currentTime;
                 }
               }
@@ -165,7 +178,3 @@
     </script>
   </body>
 </html>
-
-
-
-
