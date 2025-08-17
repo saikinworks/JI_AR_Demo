@@ -41,10 +41,10 @@
         <video
           id="videoColor"
           src="myVideo_color.mp4"
-          autoplay
           loop
           muted
           playsinline
+          preload="auto"
           crossorigin="anonymous"
         ></video>
 
@@ -52,10 +52,10 @@
         <video
           id="videoMask"
           src="myVideo_mask.mp4"
-          autoplay
           loop
           muted
           playsinline
+          preload="auto"
           crossorigin="anonymous"
         ></video>
       </a-assets>
@@ -69,7 +69,7 @@
           width="1"
           height="1"
           scale="1 1 1"
-          material="shader: video-mask-shader; visible: false"
+          material="shader: video-mask-shader"
         ></a-plane>
       </a-entity>
     </a-scene>
@@ -113,6 +113,7 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
+                // 邊緣柔化
                 mask = smoothstep(0.03, 0.98, mask);
                 if(mask < 0.01){
                   discard;
@@ -125,62 +126,51 @@
         },
       });
 
-      // ✅ 預載影片 + iOS 友好同步
+      // ✅ iOS 友好同步播放 + 溫和同步
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
-        const plane = document.querySelector("#videoPlane");
 
-        // 預載影片
-        function preloadVideos(videos, callback) {
-          let loaded = 0;
-          videos.forEach(video => {
-            video.addEventListener('canplaythrough', () => {
-              loaded++;
-              if (loaded === videos.length) callback();
-            }, { once: true });
-            video.load();
-          });
+        let canPlayCount = 0;
+        function onCanPlay() {
+          canPlayCount++;
+          if (canPlayCount === 2) {
+            waitForUserGesture();
+          }
         }
 
-        function startPlayback() {
-          // 對齊遮罩時間
+        videoColor.addEventListener("canplaythrough", onCanPlay, { once: true });
+        videoMask.addEventListener("canplaythrough", onCanPlay, { once: true });
+
+        function waitForUserGesture() {
+          // iOS: 等待使用者點擊
+          document.body.addEventListener("click", () => {
+            startVideos();
+          }, { once: true });
+
+          // 非 iOS: 可直接播放
+          if (!AFRAME.utils.device.isIOS()) {
+            startVideos();
+          }
+        }
+
+        function startVideos() {
           videoMask.currentTime = videoColor.currentTime;
           videoColor.play().catch(() => {});
           videoMask.play().catch(() => {});
-
-          // 顯示 plane
-          plane.setAttribute("visible", true);
 
           // 溫和同步迴圈
           function syncLoop() {
             if (!videoColor.paused && !videoMask.paused) {
               const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
-              if (diff > 0.02) videoMask.currentTime = videoColor.currentTime;
+              if (diff > 0.02) {
+                videoMask.currentTime = videoColor.currentTime;
+              }
             }
             requestAnimationFrame(syncLoop);
           }
           syncLoop();
         }
-
-        function requestIOSPermission(callback) {
-          if (AFRAME.utils.device.isIOS() && DeviceMotionEvent?.requestPermission) {
-            DeviceMotionEvent.requestPermission().then(() => callback()).catch(() => callback());
-          } else {
-            callback();
-          }
-        }
-
-        requestIOSPermission(() => {
-          preloadVideos([videoColor, videoMask], startPlayback);
-        });
-
-        // 點擊觸發
-        document.body.addEventListener("click", () => {
-          videoMask.currentTime = videoColor.currentTime;
-          videoColor.play().catch(() => {});
-          videoMask.play().catch(() => {});
-        }, { once: true });
       });
     </script>
   </body>
