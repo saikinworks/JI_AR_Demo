@@ -113,8 +113,8 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                // 邊緣柔化
-                mask = smoothstep(0.05, 0.95, mask);
+                // 邊緣更柔和
+                mask = smoothstep(0.02, 0.98, mask);
                 if(mask < 0.01){
                   discard;
                 }
@@ -133,35 +133,3 @@
 
         function playVideos() {
           if(videoColor.readyState >= 3 && videoMask.readyState >= 3){
-            videoMask.currentTime = videoColor.currentTime;
-            videoColor.play().catch(() => {});
-            videoMask.play().catch(() => {});
-
-            // 溫和同步迴圈
-            function syncLoop() {
-              if (!videoColor.paused && !videoMask.paused) {
-                const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
-                if (diff > 0.03) { // 允許誤差更小
-                  videoMask.currentTime = videoColor.currentTime;
-                }
-              }
-              requestAnimationFrame(syncLoop);
-            }
-            syncLoop();
-          } else {
-            setTimeout(playVideos, 100);
-          }
-        }
-
-        playVideos();
-
-        // iOS 自動播放觸發
-        document.body.addEventListener("click", () => {
-          videoMask.currentTime = videoColor.currentTime;
-          videoColor.play().catch(() => {});
-          videoMask.play().catch(() => {});
-        }, { once: true });
-      });
-    </script>
-  </body>
-</html>
