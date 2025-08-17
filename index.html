@@ -114,7 +114,7 @@
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
                 // 邊緣柔化
-                mask = smoothstep(0.02, 0.99, mask);
+                mask = smoothstep(0.03, 0.98, mask);
                 if(mask < 0.01){
                   discard;
                 }
