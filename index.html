@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader Synced)</title>
+    <title>MindAR Transparent Video (Mask Shader Synced Red Edge)</title>
 
     <style>
       html, body {
@@ -94,10 +94,14 @@
           texMask.format = THREE.LuminanceFormat;
           texMask.encoding = THREE.sRGBEncoding;
 
+          // 指定邊緣顏色
+          const edgeColor = new THREE.Color(123/255, 47/255, 48/255);
+
           this.material = new THREE.ShaderMaterial({
             uniforms: {
               map: { value: texColor },
               maskMap: { value: texMask },
+              edgeColor: { value: edgeColor }
             },
             vertexShader: `
               varying vec2 vUV;
@@ -109,20 +113,20 @@
             fragmentShader: `
               uniform sampler2D map;
               uniform sampler2D maskMap;
+              uniform vec3 edgeColor;
               varying vec2 vUV;
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
                 // 邊緣柔化
-                mask = smoothstep(0.01, 0.99, mask);
-                // 背景顏色
-                vec3 bgColor = vec3(123.0/255.0, 47.0/255.0, 48.0/255.0);
-                // 透明區域直接套背景色
+                float smoothMask = smoothstep(0.05, 0.95, mask);
+                // 如果完全透明就丟棄
                 if(mask < 0.01){
-                  gl_FragColor = vec4(bgColor, 1.0);
-                } else {
-                  gl_FragColor = vec4(mix(bgColor, color.rgb, mask), 1.0);
+                  discard;
                 }
+                // 邊緣顏色混合 (透明區不影響)
+                vec3 finalColor = mix(edgeColor, color.rgb, smoothMask);
+                gl_FragColor = vec4(finalColor, smoothMask);
               }
             `,
             transparent: true,
@@ -142,7 +146,7 @@
             videoColor.play().catch(() => {});
             videoMask.play().catch(() => {});
           } else {
-            setTimeout(playVideos, 50);
+            setTimeout(playVideos, 100);
           }
         }
 
