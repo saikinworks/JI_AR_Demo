@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader Synced Red Edge)</title>
+    <title>MindAR Transparent Video (Mask Shader Synced)</title>
 
     <style>
       html, body {
@@ -94,14 +94,10 @@
           texMask.format = THREE.LuminanceFormat;
           texMask.encoding = THREE.sRGBEncoding;
 
-          // 指定邊緣顏色
-          const edgeColor = new THREE.Color(123/255, 47/255, 48/255);
-
           this.material = new THREE.ShaderMaterial({
             uniforms: {
               map: { value: texColor },
               maskMap: { value: texMask },
-              edgeColor: { value: edgeColor }
             },
             vertexShader: `
               varying vec2 vUV;
@@ -113,24 +109,16 @@
             fragmentShader: `
               uniform sampler2D map;
               uniform sampler2D maskMap;
-              uniform vec3 edgeColor;
               varying vec2 vUV;
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-
-                // 如果完全透明就丟棄
+                // 邊緣柔化
+                mask = smoothstep(0.05, 0.95, mask);
                 if(mask < 0.01){
                   discard;
                 }
-
-                // 柔化邊緣
-                float smoothMask = smoothstep(0.0, 0.1, mask);
-
-                // 只有接近透明的邊緣使用 edgeColor
-                vec3 finalColor = mix(edgeColor, color.rgb, smoothstep(0.1, 1.0, mask));
-
-                gl_FragColor = vec4(finalColor, mask);
+                gl_FragColor = vec4(color.rgb, mask);
               }
             `,
             transparent: true,
@@ -138,17 +126,28 @@
         },
       });
 
-      // ✅ 影片同步播放
+      // ✅ 影片同步播放 + 溫和同步
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
 
         function playVideos() {
           if(videoColor.readyState >= 3 && videoMask.readyState >= 3){
-            // 對齊時間，然後同時播放
             videoMask.currentTime = videoColor.currentTime;
             videoColor.play().catch(() => {});
             videoMask.play().catch(() => {});
+
+            // 溫和同步迴圈
+            function syncLoop() {
+              if (!videoColor.paused && !videoMask.paused) {
+                const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
+                if (diff > 0.03) { // 允許誤差更小
+                  videoMask.currentTime = videoColor.currentTime;
+                }
+              }
+              requestAnimationFrame(syncLoop);
+            }
+            syncLoop();
           } else {
             setTimeout(playVideos, 100);
           }
