@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Single Combined Video)</title>
+    <title>MindAR Transparent Video (Split Mask Shader)</title>
 
     <style>
       html, body {
@@ -37,17 +37,15 @@
       embedded
     >
       <a-assets>
-        <!-- 🎥 單一上下分割影片 (上=彩色, 下=遮罩) -->
+        <!-- 🎥 上半彩色，下半遮罩的單一影片 -->
         <video
-          id="videoCombined"
-          src="myVideo_combined.mp4"
+          id="videoSplit"
+          src="myVideo_split.mp4"
           autoplay
           loop
           muted
           playsinline
           crossorigin="anonymous"
-          width="1500"
-          height="3000"
         ></video>
       </a-assets>
 
@@ -65,13 +63,12 @@
       </a-entity>
     </a-scene>
 
-    <!-- 🧩 自訂 Shader (上下分割 + 白邊修正) -->
+    <!-- 🧩 自訂 Shader -->
     <script>
       AFRAME.registerShader("video-split-shader", {
         schema: {},
         init: function () {
-          const video = document.querySelector("#videoCombined");
-
+          const video = document.querySelector("#videoSplit");
           const tex = new THREE.VideoTexture(video);
           tex.minFilter = THREE.LinearFilter;
           tex.magFilter = THREE.LinearFilter;
@@ -80,7 +77,7 @@
 
           this.material = new THREE.ShaderMaterial({
             uniforms: {
-              map: { value: tex },
+              videoTex: { value: tex },
             },
             vertexShader: `
               varying vec2 vUV;
@@ -90,50 +87,9 @@
               }
             `,
             fragmentShader: `
-              uniform sampler2D map;
+              uniform sampler2D videoTex;
               varying vec2 vUV;
               void main() {
-                // 上半 (彩色影片)
-                vec4 color = texture2D(map, vec2(vUV.x, vUV.y * 0.5));
-
-                // 下半 (遮罩影片)
-                float mask = texture2D(map, vec2(vUV.x, vUV.y * 0.5 + 0.5)).r;
-
-                // 白邊修正：加強閾值，避免半透明噪點
-                if(mask < 0.05){
-                  discard;
-                }
-
-                gl_FragColor = vec4(color.rgb, mask);
-              }
-            `,
-            transparent: true,
-          });
-        },
-      });
-
-      // ✅ iOS/Android 自動播放修正
-      document.addEventListener("DOMContentLoaded", () => {
-        const video = document.querySelector("#videoCombined");
-
-        function tryPlay() {
-          if (video.readyState >= 3) {
-            video.play().catch(() => {});
-          } else {
-            setTimeout(tryPlay, 100);
-          }
-        }
-
-        tryPlay();
-
-        document.body.addEventListener(
-          "click",
-          () => {
-            video.play().catch(() => {});
-          },
-          { once: true }
-        );
-      });
-    </script>
-  </body>
-</html>
+                // 上半彩色，下半遮罩
+                vec2 uvColor = vec2(vUV.x, vUV.y * 0.5 + 0.5); // 上半彩色
+                vec2 uvMask = vec2(vUV.x, vUV.y * 0.5);         // 下半遮罩
