@@ -117,7 +117,12 @@
                 mask = smoothstep(0.01, 0.99, mask);
                 // 背景顏色
                 vec3 bgColor = vec3(123.0/255.0, 47.0/255.0, 48.0/255.0);
-                gl_FragColor = vec4(mix(bgColor, color.rgb, mask), 1.0);
+                // 透明區域直接套背景色
+                if(mask < 0.01){
+                  gl_FragColor = vec4(bgColor, 1.0);
+                } else {
+                  gl_FragColor = vec4(mix(bgColor, color.rgb, mask), 1.0);
+                }
               }
             `,
             transparent: true,
