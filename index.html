@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Transparent Video (Mask Shader Synced)</title>
+    <title>MindAR Transparent Video (Mask Shader Synced iOS Friendly)</title>
 
     <style>
       html, body {
@@ -33,7 +33,7 @@
       color-space="sRGB"
       renderer="colorManagement: true, physicallyCorrectLights, alpha:true"
       vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
+      device-orientation-permission-ui="enabled: true"
       embedded
     >
       <a-assets>
@@ -126,12 +126,12 @@
         },
       });
 
-      // ✅ 影片同步播放 + 溫和同步
+      // ✅ iOS 友好同步播放 + 溫和同步
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
 
-        function playVideos() {
+        function initVideos() {
           if(videoColor.readyState >= 3 && videoMask.readyState >= 3){
             videoMask.currentTime = videoColor.currentTime;
             videoColor.play().catch(() => {});
@@ -141,7 +141,7 @@
             function syncLoop() {
               if (!videoColor.paused && !videoMask.paused) {
                 const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
-                if (diff > 0.03) { // 允許誤差更小
+                if (diff > 0.02) { // 允許誤差更小
                   videoMask.currentTime = videoColor.currentTime;
                 }
               }
@@ -149,13 +149,27 @@
             }
             syncLoop();
           } else {
-            setTimeout(playVideos, 100);
+            setTimeout(initVideos, 100);
           }
         }
 
-        playVideos();
+        // 等待使用者點擊授權攝影機（iOS 需求）
+        function requestIOSPermission() {
+          if (AFRAME.utils.device.isIOS()) {
+            DeviceMotionEvent.requestPermission?.().then(() => {
+              initVideos();
+            }).catch(() => {
+              console.warn("iOS device motion permission denied");
+              initVideos();
+            });
+          } else {
+            initVideos();
+          }
+        }
 
-        // iOS 自動播放觸發
+        requestIOSPermission();
+
+        // 點擊觸發自動播放
         document.body.addEventListener("click", () => {
           videoMask.currentTime = videoColor.currentTime;
           videoColor.play().catch(() => {});
