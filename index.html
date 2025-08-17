@@ -113,12 +113,11 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                // 邊緣更柔和
-                mask = smoothstep(0.02, 0.98, mask);
-                if(mask < 0.01){
-                  discard;
-                }
-                gl_FragColor = vec4(color.rgb, mask);
+                // 邊緣柔化
+                mask = smoothstep(0.01, 0.99, mask);
+                // 背景顏色
+                vec3 bgColor = vec3(123.0/255.0, 47.0/255.0, 48.0/255.0);
+                gl_FragColor = vec4(mix(bgColor, color.rgb, mask), 1.0);
               }
             `,
             transparent: true,
@@ -126,10 +125,31 @@
         },
       });
 
-      // ✅ 影片同步播放 + 溫和同步
+      // ✅ 影片同步播放
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
 
         function playVideos() {
           if(videoColor.readyState >= 3 && videoMask.readyState >= 3){
+            // 對齊時間，然後同時播放
+            videoMask.currentTime = videoColor.currentTime;
+            videoColor.play().catch(() => {});
+            videoMask.play().catch(() => {});
+          } else {
+            setTimeout(playVideos, 50);
+          }
+        }
+
+        playVideos();
+
+        // iOS 自動播放觸發
+        document.body.addEventListener("click", () => {
+          videoMask.currentTime = videoColor.currentTime;
+          videoColor.play().catch(() => {});
+          videoMask.play().catch(() => {});
+        }, { once: true });
+      });
+    </script>
+  </body>
+</html>
