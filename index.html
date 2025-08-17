@@ -37,10 +37,10 @@
       embedded
     >
       <a-assets>
-        <!-- 彩色影片 -->
+        <!-- 🎥 彩色影片 (黑底) -->
         <video
           id="videoColor"
-          src="myVideo color.mp4"
+          src="myVideo_color.mp4"
           autoplay
           loop
           muted
@@ -48,10 +48,10 @@
           crossorigin="anonymous"
         ></video>
 
-        <!-- 遮罩影片 -->
+        <!-- 🎥 遮罩影片 (白=顯示, 黑=透明) -->
         <video
           id="videoMask"
-          src="myVideo mask.mp4"
+          src="myVideo_mask.mp4"
           autoplay
           loop
           muted
@@ -62,17 +62,19 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
+      <!-- 🎯 掛載目標 -->
       <a-entity mindar-image-target="targetIndex: 0" rotation="-90 0 0" position="0 0 0.5">
         <a-plane
           id="videoPlane"
           width="1"
-          height="1"
-          scale="1 1 1"
+          height="1.333"
+          scale="1.3 1.3 1.3"
           material="shader: video-mask-shader"
         ></a-plane>
       </a-entity>
     </a-scene>
 
+    <!-- 🧩 自訂 Shader -->
     <script>
       AFRAME.registerShader("video-mask-shader", {
         schema: {},
@@ -111,8 +113,6 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                // 抑制白邊
-                mask = smoothstep(0.05, 0.95, mask);
                 if(mask < 0.01){
                   discard;
                 }
@@ -124,18 +124,30 @@
         },
       });
 
-      // 同步播放影片，避免時間錯開
+      // ✅ 兩影片同步播放 + 溫和同步修正
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
 
         function tryPlayVideos() {
           if (videoColor.readyState >= 3 && videoMask.readyState >= 3) {
-            videoMask.currentTime = videoColor.currentTime; // 對齊時間
+            videoMask.currentTime = videoColor.currentTime; // 首次對齊
             videoColor.play().catch(() => {});
             videoMask.play().catch(() => {});
+
+            // 溫和同步迴圈
+            function syncLoop() {
+              if (!videoColor.paused && !videoMask.paused) {
+                const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
+                if (diff > 0.05) {
+                  videoMask.currentTime = videoColor.currentTime;
+                }
+              }
+              requestAnimationFrame(syncLoop);
+            }
+            syncLoop();
           } else {
-            setTimeout(tryPlayVideos, 50); // 加快檢查
+            setTimeout(tryPlayVideos, 100);
           }
         }
 
