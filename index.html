@@ -69,7 +69,7 @@
           width="1"
           height="1"
           scale="1 1 1"
-          material="shader: video-mask-shader"
+          material="shader: video-mask-shader; visible: false"
         ></a-plane>
       </a-entity>
     </a-scene>
@@ -113,7 +113,6 @@
               void main() {
                 vec4 color = texture2D(map, vUV);
                 float mask = texture2D(maskMap, vUV).r;
-                // 邊緣柔化
                 mask = smoothstep(0.03, 0.98, mask);
                 if(mask < 0.01){
                   discard;
@@ -126,50 +125,57 @@
         },
       });
 
-      // ✅ iOS 友好同步播放 + 溫和同步
+      // ✅ 預載影片 + iOS 友好同步
       document.addEventListener("DOMContentLoaded", () => {
         const videoColor = document.querySelector("#videoColor");
         const videoMask = document.querySelector("#videoMask");
+        const plane = document.querySelector("#videoPlane");
 
-        function initVideos() {
-          if(videoColor.readyState >= 3 && videoMask.readyState >= 3){
-            videoMask.currentTime = videoColor.currentTime;
-            videoColor.play().catch(() => {});
-            videoMask.play().catch(() => {});
+        // 預載影片
+        function preloadVideos(videos, callback) {
+          let loaded = 0;
+          videos.forEach(video => {
+            video.addEventListener('canplaythrough', () => {
+              loaded++;
+              if (loaded === videos.length) callback();
+            }, { once: true });
+            video.load();
+          });
+        }
 
-            // 溫和同步迴圈
-            function syncLoop() {
-              if (!videoColor.paused && !videoMask.paused) {
-                const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
-                if (diff > 0.02) { // 允許誤差更小
-                  videoMask.currentTime = videoColor.currentTime;
-                }
-              }
-              requestAnimationFrame(syncLoop);
+        function startPlayback() {
+          // 對齊遮罩時間
+          videoMask.currentTime = videoColor.currentTime;
+          videoColor.play().catch(() => {});
+          videoMask.play().catch(() => {});
+
+          // 顯示 plane
+          plane.setAttribute("visible", true);
+
+          // 溫和同步迴圈
+          function syncLoop() {
+            if (!videoColor.paused && !videoMask.paused) {
+              const diff = Math.abs(videoColor.currentTime - videoMask.currentTime);
+              if (diff > 0.02) videoMask.currentTime = videoColor.currentTime;
             }
-            syncLoop();
+            requestAnimationFrame(syncLoop);
+          }
+          syncLoop();
+        }
+
+        function requestIOSPermission(callback) {
+          if (AFRAME.utils.device.isIOS() && DeviceMotionEvent?.requestPermission) {
+            DeviceMotionEvent.requestPermission().then(() => callback()).catch(() => callback());
           } else {
-            setTimeout(initVideos, 100);
+            callback();
           }
         }
 
-        // 等待使用者點擊授權攝影機（iOS 需求）
-        function requestIOSPermission() {
-          if (AFRAME.utils.device.isIOS()) {
-            DeviceMotionEvent.requestPermission?.().then(() => {
-              initVideos();
-            }).catch(() => {
-              console.warn("iOS device motion permission denied");
-              initVideos();
-            });
-          } else {
-            initVideos();
-          }
-        }
+        requestIOSPermission(() => {
+          preloadVideos([videoColor, videoMask], startPlayback);
+        });
 
-        requestIOSPermission();
-
-        // 點擊觸發自動播放
+        // 點擊觸發
         document.body.addEventListener("click", () => {
           videoMask.currentTime = videoColor.currentTime;
           videoColor.play().catch(() => {});
